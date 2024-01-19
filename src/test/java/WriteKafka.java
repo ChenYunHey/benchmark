@@ -1,5 +1,6 @@
-package com.lakesoul.benchmark;
 
+
+import com.amazonaws.services.dynamodbv2.xspec.S;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -18,6 +19,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.types.Row;
@@ -83,19 +85,6 @@ public class WriteKafka {
                                 Types.STRING, Types.STRING, Types.STRING, Types.STRING, Types.STRING, Types.STRING, Types.STRING, Types.STRING, Types.STRING)
                 );
 
-        final Schema schema = Schema.newBuilder()
-                .column("client_ip", DataTypes.VARCHAR(100).notNull())
-                .column("domain", DataTypes.VARCHAR(10))
-                .column("`time`", DataTypes.STRING())
-                .column("target_ip", DataTypes.VARCHAR(20))
-                .column("rcode", DataTypes.VARCHAR(20))
-                .column("query_type", DataTypes.VARCHAR(20))
-                .column("authority_record", DataTypes.VARCHAR(25))
-                .column("add_msg", DataTypes.VARCHAR(25))
-                .column("dns_ip", DataTypes.VARCHAR(20))
-                .primaryKey("client_ip")
-                .build();
-
         Table table = tEnvs.fromDataStream(targetDS);
 
         Catalog catalog = new LakeSoulCatalog();
@@ -105,13 +94,8 @@ public class WriteKafka {
         String createUserSql = "create table `lakesoul`.`default`.%s (client_ip varchar(100) PRIMARY KEY NOT ENFORCED, domain varchar(10), `time` STRING, " +
                 "target_ip VARCHAR(20), rcode varchar(20), query_type VARCHAR(20),authority_record varchar(25), add_msg varchar(25), dns_ip varchar(20))" +
                 "WITH ('connector'='lakesoul','hashBucketNum'='%s','path'='%s')";
-        String createSql =  String.format(createUserSql,tableName,hashBucketNum,warehousePath+tableName);
+        String createSql =  String.format(createUserSql,tableName,warehousePath+tableName);
 
-//        tEnvs.createTable("`lakesoul`.`default`."+tableName, TableDescriptor.forConnector("lakesoul")
-//                .schema(schema)
-//                .option("path",warehousePath+tableName)
-//                .option("hashBucketNum", String.valueOf(8))
-//                .build());
         tEnvs.executeSql(createSql);
         tEnvs.executeSql("insert into `lakesoul`.`default`."+tableName+" select * from kafka_lakesoul");
 
