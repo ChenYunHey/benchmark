@@ -276,7 +276,7 @@
                             <include>org.apache.kafka:kafka-clients</include>
                             <include>org.apache.commons:commons-lang3</include>
                             <include>org.slf4j:slf4j-api</include>
-                            <include>com.dmetasoul:lakesoul-flink</include>
+<!--                            <include>com.dmetasoul:lakesoul-flink</include>-->
 <!--                            <include>org.apache.flink:flink-connector-jdbc</include>-->
                         </includes>
                     </artifactSet>

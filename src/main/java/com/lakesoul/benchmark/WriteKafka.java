@@ -22,7 +22,6 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.types.Row;
 
-
 public class WriteKafka {
     static String checkPointStorage = "file:///tmp/lakesoul/benchmark/kafka/ck";
     static String bootstrapServer = "localhost:9092";

@@ -2,6 +2,7 @@ package com.lakesoul.benchmark;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.lakesoul.metadata.LakeSoulCatalog;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
@@ -16,6 +17,7 @@ public class WriteMysqlJdbc {
     static String warehousePath = "/tmp/lakesoul/mysql2/";
     static int hashBucketNum = 4;
     static int parallelism = 4;
+    static int checkpointTime = 3000;
     public static void main(String[] args) {
 
         ParameterTool parameterTool = ParameterTool.fromArgs(args);
@@ -28,7 +30,9 @@ public class WriteMysqlJdbc {
         hashBucketNum = parameterTool.getInt("bucketParallelism",4);
         parallelism = parameterTool.getInt("sourceParallelism",4);
         password = parameterTool.get("password",password);
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        checkpointTime = parameterTool.getInt("checkpointTime",3000);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
+                .enableCheckpointing(checkpointTime, CheckpointingMode.EXACTLY_ONCE);
         env.setParallelism(parallelism);
         StreamTableEnvironment tEnvs = StreamTableEnvironment.create(env);
 
