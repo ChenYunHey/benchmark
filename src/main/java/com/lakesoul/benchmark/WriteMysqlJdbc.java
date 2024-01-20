@@ -18,6 +18,7 @@ public class WriteMysqlJdbc {
     static int hashBucketNum = 4;
     static int parallelism = 4;
     static int checkpointTime = 3000;
+    static String checkpointPath;
     public static void main(String[] args) {
 
         ParameterTool parameterTool = ParameterTool.fromArgs(args);
@@ -27,12 +28,15 @@ public class WriteMysqlJdbc {
         sourceTableName = parameterTool.get("sourceTableName","lakesoul_test_mysql_table");
         targetTableName = parameterTool.get("targetTableName","lakesoul_test_mysql_table");
         warehousePath = parameterTool.get("warehousePath", "/tmp/lakesoul/mysql2/");
+
         hashBucketNum = parameterTool.getInt("bucketParallelism",4);
         parallelism = parameterTool.getInt("sourceParallelism",4);
         password = parameterTool.get("password",password);
         checkpointTime = parameterTool.getInt("checkpointTime",3000);
+        checkpointPath = parameterTool.get("checkpointPath","file:///tmp/lakesoul/ck");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
                 .enableCheckpointing(checkpointTime, CheckpointingMode.EXACTLY_ONCE);
+        env.getCheckpointConfig().setCheckpointStorage(checkpointPath);
         env.setParallelism(parallelism);
         StreamTableEnvironment tEnvs = StreamTableEnvironment.create(env);
 
