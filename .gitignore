@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2023 LakeSoul Contributors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+/target/
+/build/
+/.idea/
+/derby.log
+/.metals/
+/.vscode/
+*.iml
+dependency-reduced-pom.xml
+*.DS_Store
