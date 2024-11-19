@@ -85,13 +85,13 @@ public class PostgresPartitionProcessing {
                 .keyBy(value -> value.f1)
                 .process(new PartitionDescProcessFunction.AccumulateValueProcessFunction());
 //
-//        SingleOutputStreamOperator<Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>> table_level_assets = mainStream.getSideOutput(tableInfoTag)
-//                .keyBy(value -> value.f1)
-//                .connect(partitionInfoProgress.keyBy(value -> value.f0))
-//                .process(new PartitionDescProcessFunction.MergeFunction0())
-//                .keyBy(value -> value.f0)
-//                .connect(dataCommitInfoProcess.keyBy(value -> value.f0))
-//                .process(new PartitionDescProcessFunction.MergeFunction3());
+        SingleOutputStreamOperator<Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>> table_level_assets = mainStream.getSideOutput(tableInfoTag)
+                .keyBy(value -> value.f1)
+                .connect(partitionInfoProgress.keyBy(value -> value.f0))
+                .process(new PartitionDescProcessFunction.MergeFunction0())
+                .keyBy(value -> value.f0)
+                .connect(dataCommitInfoProcess.keyBy(value -> value.f0))
+                .process(new PartitionDescProcessFunction.MergeFunction3());
 
 //        SinkFunction<Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>> sink = JdbcSink.sink(
 //                "INSERT INTO table_level_assets (table_id, table_name, domain, creator, namespace, partition_counts, file_counts, file_total_size) " +
@@ -125,10 +125,11 @@ public class PostgresPartitionProcessing {
 //                .keyBy(value -> value.f1)
 //                .connect(partitionInfoProgress.keyBy(value -> value.f0))
 //                .process(new PartitionDescProcessFunction.MergeFunction0()).print();
-        //mainStream.getSideOutput(tableInfoTag).print();
+//        mainStream.getSideOutput(tableInfoTag).print();
         //mainStream.print();
         //dataCommitInfoProcess.print();
-        partitionInfoProgress.print();
+        //partitionInfoProgress.print();
+        table_level_assets.print();
 
         //table_level_assets.addSink(sink);
 //        mainStream.getSideOutput(dataCommitInfoTag).print();
@@ -165,7 +166,7 @@ public class PostgresPartitionProcessing {
                 // 解析传入的 JSON 字符串
                 JSONObject parse = (JSONObject) JSONObject.parse(s);
                 String PGtableName = parse.get("tableName").toString();
-                String[] tableInfos = new String[4];
+                String[] tableInfos = new String[5];
                 JSONObject afterJson = null;
                 JSONObject commitJson = null;
 
@@ -186,16 +187,22 @@ public class PostgresPartitionProcessing {
 
                 // 处理 table_info 表
                 if (PGtableName.equals("table_info")) {
-                    afterJson = (JSONObject) parse.get("after");
-                    String tableId = afterJson.getString("table_id");
-                    String tableNamespace = afterJson.getString("table_namespace");
-                    String tableName = afterJson.getString("table_name");
-                    String domain = afterJson.getString("domain");
-                    String creator = afterJson.getString("creator");
+                    if (parse.getJSONObject("after").size() > 0){
+                        commitJson = (JSONObject) parse.get("after");
+                    } else {
+                        commitJson = (JSONObject) parse.get("before");
+                    }
+                    String tableId = commitJson.getString("table_id");
+                    String tableNamespace = commitJson.getString("table_namespace");
+                    String tableName = commitJson.getString("table_name");
+                    String domain = commitJson.getString("domain");
+                    String creator = commitJson.getString("creator");
+                    String commitOp = parse.getString("commitOp");
                     tableInfos[0] = tableNamespace;
                     tableInfos[1] = tableName;
                     tableInfos[2] = domain;
                     tableInfos[3] = creator;
+                    tableInfos[4] = commitOp;
                     return new Tuple3<>(PGtableName, tableId, tableInfos);
                 }
 
@@ -434,7 +441,7 @@ public class PostgresPartitionProcessing {
 
                 // 如果两个流的数据有匹配，进行Join
                 if (latestPartitionInfoValue != null && valueTableInfo.f1.equals(latestPartitionInfoValue.f0)) {
-                    collector.collect(new Tuple7<>(valueTableInfo.f1, valueTableInfo.f2[1], valueTableInfo.f2[0], valueTableInfo.f2[2], valueTableInfo.f2[3], latestPartitionInfoValue.f0, latestPartitionInfoValue.f1));
+                    collector.collect(new Tuple7<>(valueTableInfo.f1, valueTableInfo.f2[1], valueTableInfo.f2[0], valueTableInfo.f2[2], valueTableInfo.f2[3], valueTableInfo.f2[4], latestPartitionInfoValue.f1));
                 }
             }
 
@@ -450,7 +457,7 @@ public class PostgresPartitionProcessing {
 
                 // 如果两个流的数据有匹配，进行Join
                 if (latestTableInfoValue != null && valuePartitionInfo.f0.equals(latestTableInfoValue.f1)) {
-                    collector.collect(new Tuple7<>(latestTableInfoValue.f1, latestTableInfoValue.f2[1], latestTableInfoValue.f2[0], latestTableInfoValue.f2[2], latestTableInfoValue.f2[3], valuePartitionInfo.f0, valuePartitionInfo.f1));
+                    collector.collect(new Tuple7<>(latestTableInfoValue.f1, latestTableInfoValue.f2[1], latestTableInfoValue.f2[0], latestTableInfoValue.f2[2], latestTableInfoValue.f2[3], latestTableInfoValue.f2[4], valuePartitionInfo.f1));
                 }
             }
         }
