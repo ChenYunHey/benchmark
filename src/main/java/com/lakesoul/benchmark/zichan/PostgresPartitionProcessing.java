@@ -129,7 +129,9 @@ public class PostgresPartitionProcessing {
         //mainStream.print();
         //dataCommitInfoProcess.print();
         //partitionInfoProgress.print();
-        table_level_assets.print();
+        table_level_assets.keyBy(value -> value.f2)
+                .process(new DataBaseLevelAssets.PartitionInfoProcessFunction())
+                        .print();
 
         //table_level_assets.addSink(sink);
 //        mainStream.getSideOutput(dataCommitInfoTag).print();
@@ -232,11 +234,7 @@ public class PostgresPartitionProcessing {
                         if (fileOpsString[0].equals("add")){
                             fileCount ++;
                             fileBytesSize = fileBytesSize + Long.parseLong(fileOpsString[1]);
-                        } else {
-                            fileCount --;
-                            fileBytesSize = fileBytesSize - Long.parseLong(fileOpsString[1]);
                         }
-
                     }
 
                     tableInfos[0] = String.valueOf(fileCount);
@@ -369,46 +367,6 @@ public class PostgresPartitionProcessing {
             }
         }
 
-        public static class MergeFunction extends CoProcessFunction<Tuple3<String, String, String[]>, Tuple2<String, Integer>, Tuple7<String, String, String, String, String, String, Integer>>{
-
-            private ListState<Tuple3<String, String, String[]>> streamOfTableInfo;
-            private ListState<Tuple2<String, Integer>> streamOfPartitionInfo;
-
-            @Override
-            public void open(Configuration parameters) {
-                // 为流A定义ListStateDescriptor，明确指定Tuple3的具体类型
-                ListStateDescriptor<Tuple3<String, String, String[]>> streamOfTableInfoDesc =
-                        new ListStateDescriptor<>("streamA", TypeInformation.of(new TypeHint<Tuple3<String, String, String[]>>() {}));
-
-                // 为流B定义ListStateDescriptor，明确指定Tuple2的具体类型
-                ListStateDescriptor<Tuple2<String, Integer>> streamOfPartitionInfoDesc =
-                        new ListStateDescriptor<>("streamB", TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
-
-                // 获取状态
-                streamOfTableInfo = getRuntimeContext().getListState(streamOfTableInfoDesc);
-                streamOfPartitionInfo = getRuntimeContext().getListState(streamOfPartitionInfoDesc);
-            }
-
-
-            @Override
-            public void processElement1(Tuple3<String, String, String[]> valueTableInfo, CoProcessFunction<Tuple3<String, String, String[]>, Tuple2<String, Integer>, Tuple7<String, String, String, String, String, String, Integer>>.Context context, Collector<Tuple7<String, String, String, String, String, String, Integer>> collector) throws Exception {
-                streamOfTableInfo.add(valueTableInfo);
-                for (Tuple2<String, Integer> partitionDesc : streamOfPartitionInfo.get()) {
-                    if (valueTableInfo.f1.equals(partitionDesc.f0))
-                        collector.collect(new Tuple7<>(valueTableInfo.f1, valueTableInfo.f2[1], valueTableInfo.f2[0], valueTableInfo.f2[2], valueTableInfo.f2[3], partitionDesc.f0, partitionDesc.f1));
-                }
-            }
-
-            @Override
-            public void processElement2(Tuple2<String, Integer> valuePartitionInfo, CoProcessFunction<Tuple3<String, String, String[]>, Tuple2<String, Integer>, Tuple7<String, String, String, String, String, String, Integer>>.Context context, Collector<Tuple7<String, String, String, String, String, String, Integer>> collector) throws Exception {
-                streamOfPartitionInfo.add(valuePartitionInfo);
-                for (Tuple3<String, String, String[]> tableDesc : streamOfTableInfo.get()) {
-                    if (valuePartitionInfo.f0.equals(tableDesc.f1)){
-                        collector.collect(new Tuple7<>(tableDesc.f1, tableDesc.f2[1], tableDesc.f2[0],tableDesc.f2[2],tableDesc.f2[3], valuePartitionInfo.f0, valuePartitionInfo.f1));
-                    }
-                }
-            }
-        }
         public static class MergeFunction0 extends CoProcessFunction<Tuple3<String, String, String[]>, Tuple2<String, Integer>, Tuple7<String, String, String, String, String, String, Integer>> {
 
             private ValueState<Tuple3<String, String, String[]>> latestTableInfo;
@@ -463,44 +421,6 @@ public class PostgresPartitionProcessing {
         }
 
 
-        public static class MergeFunction2 extends CoProcessFunction<Tuple7<String, String, String, String, String, String, Integer>, Tuple3<String, Integer, Long>, Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>>{
-            private ListState<Tuple7<String, String, String, String, String, String, Integer>> mainStream;
-            private ListState<Tuple3<String, Integer, Long>> dataComitInfoStream;
-
-            @Override
-            public void open(Configuration parameters) {
-                // 为流A定义ListStateDescriptor，明确指定Tuple3的具体类型
-                ListStateDescriptor<Tuple7<String, String, String, String, String, String, Integer>> streamOfTableInfoDesc =
-                        new ListStateDescriptor<>("mainStream", TypeInformation.of(new TypeHint<Tuple7<String, String, String, String, String, String, Integer>>() {}));
-
-                // 为流B定义ListStateDescriptor，明确指定Tuple2的具体类型
-                ListStateDescriptor<Tuple3<String, Integer, Long>> streamOfPartitionInfoDesc =
-                        new ListStateDescriptor<>("dataComitInfoStream", TypeInformation.of(new TypeHint<Tuple3<String, Integer, Long>>() {}));
-
-                // 获取状态
-                mainStream = getRuntimeContext().getListState(streamOfTableInfoDesc);
-                dataComitInfoStream = getRuntimeContext().getListState(streamOfPartitionInfoDesc);
-            }
-            @Override
-            public void processElement1(Tuple7<String, String, String, String, String, String, Integer> valueMain, CoProcessFunction<Tuple7<String, String, String, String, String, String, Integer>, Tuple3<String, Integer, Long>, Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>>.Context context, Collector<Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>> collector) throws Exception {
-                mainStream.add(valueMain);
-                for (Tuple3<String, Integer, Long> valueDataComitInfo : dataComitInfoStream.get()) {
-                    if (valueMain.f0.equals(valueDataComitInfo.f0)){
-                        collector.collect(new Tuple10<>(valueMain.f0,valueMain.f1,valueMain.f2,valueMain.f3,valueMain.f4,valueMain.f5,valueMain.f6,valueDataComitInfo.f0,valueDataComitInfo.f1,valueDataComitInfo.f2));
-                    }
-                }
-            }
-
-            @Override
-            public void processElement2(Tuple3<String, Integer, Long> valueDataCommitInfo, CoProcessFunction<Tuple7<String, String, String, String, String, String, Integer>, Tuple3<String, Integer, Long>, Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>>.Context context, Collector<Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>> collector) throws Exception {
-                dataComitInfoStream.add(valueDataCommitInfo);
-                for (Tuple7<String, String, String, String, String, String, Integer> valueMain : mainStream.get()) {
-                    if (valueDataCommitInfo.f0.equals(valueMain.f0)){
-                        collector.collect(new Tuple10<>(valueMain.f0, valueMain.f1, valueMain.f2, valueMain.f3, valueMain.f4, valueMain.f5, valueMain.f6, valueDataCommitInfo.f0, valueDataCommitInfo.f1, valueDataCommitInfo.f2));
-                    }
-                }
-            }
-        }
         public static class MergeFunction3 extends CoProcessFunction<Tuple7<String, String, String, String, String, String, Integer>, Tuple3<String, Integer, Long>, Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>> {
 
             private ValueState<Tuple7<String, String, String, String, String, String, Integer>> latestMainStream;

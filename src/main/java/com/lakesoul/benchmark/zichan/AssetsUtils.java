@@ -1,5 +1,6 @@
 package com.lakesoul.benchmark.zichan;
 
+import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
