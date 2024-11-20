@@ -15,9 +15,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
-import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
-import org.apache.flink.connector.jdbc.JdbcSink;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -25,7 +22,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -129,8 +125,11 @@ public class PostgresPartitionProcessing {
         //mainStream.print();
         //dataCommitInfoProcess.print();
         //partitionInfoProgress.print();
-        table_level_assets.keyBy(value -> value.f2)
-                .process(new DataBaseLevelAssets.PartitionInfoProcessFunction())
+        SingleOutputStreamOperator<Tuple7<String, String, String, Integer, Integer, Integer, Long>> dataBaseLevleAssets = table_level_assets.keyBy(value -> value.f2)
+                .process(new DataBaseLevelAssets.PartitionInfoProcessFunction());
+
+        dataBaseLevleAssets.keyBy(value -> value.f2)
+                .process(new DomainLevelAssets.PartitionInfoProcessFunction())
                         .print();
 
         //table_level_assets.addSink(sink);
