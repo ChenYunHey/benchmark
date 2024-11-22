@@ -10,7 +10,7 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 
 public class DataBaseLevelAssets {
-    public static class PartitionInfoProcessFunction extends KeyedProcessFunction<String, Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>, Tuple7<String,String, String,Integer,Integer,Integer,Long>> {
+    public static class PartitionInfoProcessFunction extends KeyedProcessFunction<String, Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>, Tuple5< String,Integer,Integer,Integer,Long>> {
 
         private MapState<String, TableCount> tableState;
         private transient ValueState<TableAssets> databaseState;
@@ -32,7 +32,7 @@ public class DataBaseLevelAssets {
         }
 
         @Override
-        public void processElement(Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long> input, Context ctx, Collector<Tuple7<String,String, String,Integer,Integer,Integer,Long>> out) throws Exception {
+        public void processElement(Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long> input, Context ctx, Collector<Tuple5<String,Integer,Integer,Integer,Long>> out) throws Exception {
             String tableId = input.f0;
             String namespace = input.f2;
             String doamin = input.f3;
@@ -71,13 +71,13 @@ public class DataBaseLevelAssets {
                 }
                 TableCount tableCount = new TableCount(tableId,partitionCount,fileCounts,fileTotalSize);
                 tableState.put(tableId,tableCount);
-                out.collect(new Tuple7<>(namespace,creator,doamin,databaseState.value().tableCounts,databaseState.value().partitionCounts,databaseState.value().fileCounts,databaseState.value().fileTotalSize));
+                out.collect(new Tuple5<>(namespace,databaseState.value().tableCounts,databaseState.value().partitionCounts,databaseState.value().fileCounts,databaseState.value().fileTotalSize));
             } else {
                 if (tableState.contains(tableId)){
                     TableAssets tableAssets = new TableAssets(namespace,creator,doamin,currentTableCount-1,currentPartionCounts-partitionCount,currentFileCounts-fileCounts,currentFilesTotalSize-fileTotalSize);
                     databaseState.update(tableAssets);
                     tableState.remove(tableId);
-                    out.collect(new Tuple7<>(namespace,creator,doamin,databaseState.value().tableCounts,databaseState.value().partitionCounts,databaseState.value().fileCounts,databaseState.value().fileTotalSize));
+                    out.collect(new Tuple5<>(namespace,databaseState.value().tableCounts,databaseState.value().partitionCounts,databaseState.value().fileCounts,databaseState.value().fileTotalSize));
                 }
             }
 

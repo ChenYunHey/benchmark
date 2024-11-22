@@ -1,6 +1,5 @@
 package com.lakesoul.benchmark.zichan;
 
-import com.amazonaws.services.dynamodbv2.xspec.B;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -11,7 +10,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 
-public class UserAssets {
+public class UserLevelAssets {
     public static class PartitionInfoProcessFunction extends KeyedProcessFunction<String, Tuple10<String, String, String, String, String, String, Integer, String, Integer, Long>, Tuple7<String,Integer, Integer,Integer,Integer,Integer,Long>> {
 
         private MapState<String, TableCount> tableState;
@@ -80,19 +79,28 @@ public class UserAssets {
                 currentFileCounts = currentTableAssets.fileCounts;
                 currentFilesTotalSize = currentTableAssets.fileTotalSize;
             }
-            if (!tableState.contains(tableId)){
-                TableAssets tableAssets = new TableAssets(namespace,creator,doamin,currentTableCounts+1,currentPartionCounts+partitionCount,currentFileCounts+fileCounts,currentFilesTotalSize+fileTotalSize);
-                userState.update(tableAssets);
+            if (!tabeOps.equals("delete")){
+                if (!tableState.contains(tableId)){
+                    TableAssets tableAssets = new TableAssets(namespace,creator,doamin,currentTableCounts+1,currentPartionCounts+partitionCount,currentFileCounts+fileCounts,currentFilesTotalSize+fileTotalSize);
+                    userState.update(tableAssets);
+                } else {
+                    int oldFileCount = tableState.get(tableId).fileCount;
+                    int oldPartitionsCount = tableState.get(tableId).partitionsCount;
+                    long oldFileTotalSize = tableState.get(tableId).fileTotalSize;
+                    TableAssets tableAssets = new TableAssets(namespace,creator,doamin,currentTableCounts,currentPartionCounts+partitionCount-oldPartitionsCount,currentFileCounts+fileCounts-oldFileCount,currentFilesTotalSize+fileTotalSize-oldFileTotalSize);
+                    userState.update(tableAssets);
+                }
+                TableCount tableCount = new TableCount(tableId,partitionCount,fileCounts,fileTotalSize);
+                tableState.put(tableId,tableCount);
+                out.collect(new Tuple7<>(creator,currentDomainCounts,currentNamspaceCounts,userState.value().tableCounts,userState.value().partitionCounts,userState.value().fileCounts,userState.value().fileTotalSize));
             } else {
-                int oldFileCount = tableState.get(tableId).fileCount;
-                int oldPartitionsCount = tableState.get(tableId).partitionsCount;
-                long oldFileTotalSize = tableState.get(tableId).fileTotalSize;
-                TableAssets tableAssets = new TableAssets(namespace,creator,doamin,currentTableCounts,currentPartionCounts+partitionCount-oldPartitionsCount,currentFileCounts+fileCounts-oldFileCount,currentFilesTotalSize+fileTotalSize-oldFileTotalSize);
-                userState.update(tableAssets);
+                if (tableState.contains(tableId)){
+                    TableAssets tableAssets = new TableAssets(namespace,creator,doamin,currentTableCounts-1,currentPartionCounts-partitionCount,currentFileCounts-fileCounts,currentFilesTotalSize-fileTotalSize);
+                    userState.update(tableAssets);
+                    tableState.remove(tableId);
+                    out.collect(new Tuple7<>(creator,currentDomainCounts,currentNamspaceCounts,userState.value().tableCounts,userState.value().partitionCounts,userState.value().fileCounts,userState.value().fileTotalSize));
+                }
             }
-            TableCount tableCount = new TableCount(tableId,partitionCount,fileCounts,fileTotalSize);
-            tableState.put(tableId,tableCount);
-            out.collect(new Tuple7<>(creator,currentDomainCounts,currentNamspaceCounts,userState.value().tableCounts,userState.value().partitionCounts,userState.value().fileCounts,userState.value().fileTotalSize));
         }
     }
 }
